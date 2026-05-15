@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Plan de prueba de carga: SFTP Upload Endpoint
+  Escenario: 50 usuarios concurrentes subiendo archivos de ~1KB durante 60 segundos
+  Objetivo: p95 < 500ms, tasa de error < 1%
+
+  Ejecución:
+    jmeter -n -t sftp_upload_load_test.jmx \
+      -Jhost=localhost -Jport=8080 \
+      -l results.jtl -e -o report/
+-->
+<jmeterTestPlan version="1.2" properties="5.0">
+  <hashTree>
+    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="SFTP Upload Load Test">
+      <elementProp name="TestPlan.user_defined_variables" elementType="Arguments">
+        <collectionProp name="Arguments.arguments">
+          <elementProp name="host" elementType="Argument">
+            <stringProp name="Argument.name">host</stringProp>
+            <stringProp name="Argument.value">${__P(host,localhost)}</stringProp>
+          </elementProp>
+          <elementProp name="port" elementType="Argument">
+            <stringProp name="Argument.name">port</stringProp>
+            <stringProp name="Argument.value">${__P(port,8080)}</stringProp>
+          </elementProp>
+          <elementProp name="basePath" elementType="Argument">
+            <stringProp name="Argument.name">basePath</stringProp>
+            <stringProp name="Argument.value">${__P(basePath,/api/v1/sftp)}</stringProp>
+          </elementProp>
+          <elementProp name="username" elementType="Argument">
+            <stringProp name="Argument.name">username</stringProp>
+            <stringProp name="Argument.value">${__P(username,admin)}</stringProp>
+          </elementProp>
+          <elementProp name="password" elementType="Argument">
+            <stringProp name="Argument.name">password</stringProp>
+            <stringProp name="Argument.value">${__P(password,changeme)}</stringProp>
+          </elementProp>
+        </collectionProp>
+      </elementProp>
+      <hashTree>
+
+        <!-- Thread Group: 50 usuarios, rampa de 10s, duración 60s -->
+        <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="Upload Users">
+          <intProp name="ThreadGroup.num_threads">50</intProp>
+          <intProp name="ThreadGroup.ramp_time">10</intProp>
+          <boolProp name="ThreadGroup.scheduler">true</boolProp>
+          <stringProp name="ThreadGroup.duration">60</stringProp>
+          <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
+          <elementProp name="ThreadGroup.main_controller" elementType="LoopController">
+            <boolProp name="LoopController.continue_forever">true</boolProp>
+          </elementProp>
+          <hashTree>
+
+            <!-- HTTP Request: POST /api/v1/sftp/upload -->
+            <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy"
+                              testname="POST Upload File">
+              <stringProp name="HTTPSampler.domain">${host}</stringProp>
+              <stringProp name="HTTPSampler.port">${port}</stringProp>
+              <stringProp name="HTTPSampler.path">${basePath}/upload</stringProp>
+              <stringProp name="HTTPSampler.method">POST</stringProp>
+              <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+              <boolProp name="HTTPSampler.DO_MULTIPART_POST">true</boolProp>
+              <elementProp name="HTTPsampler.Files" elementType="HTTPFileArgs">
+                <collectionProp name="HTTPFileArgs.files">
+                  <elementProp name="test-payload.txt" elementType="HTTPFileArg">
+                    <stringProp name="File.path">test-payload.txt</stringProp>
+                    <stringProp name="File.paramname">file</stringProp>
+                    <stringProp name="File.mimetype">text/plain</stringProp>
+                  </elementProp>
+                </collectionProp>
+              </elementProp>
+            </HTTPSamplerProxy>
+
+            <!-- Auth Header: Basic Auth -->
+            <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="Auth Header">
+              <collectionProp name="HeaderManager.headers">
+                <elementProp name="Authorization" elementType="Header">
+                  <stringProp name="Header.name">Authorization</stringProp>
+                  <stringProp name="Header.value">Basic ${__base64Encode(${username}:${password})}</stringProp>
+                </elementProp>
+              </collectionProp>
+            </HeaderManager>
+
+            <!-- Assertion: Response Code 200 -->
+            <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion"
+                               testname="Assert 200 OK">
+              <collectionProp name="Asserion.test_strings">
+                <stringProp>200</stringProp>
+              </collectionProp>
+              <intProp name="Assertion.test_type">8</intProp>
+              <stringProp name="Assertion.test_field">Assertion.response_code</stringProp>
+            </ResponseAssertion>
+
+            <!-- Assertion: Response time < 500ms (p95) -->
+            <DurationAssertion guiclass="DurationAssertionGui" testclass="DurationAssertion"
+                               testname="Assert p95 lt 500ms">
+              <stringProp name="DurationAssertion.duration">500</stringProp>
+            </DurationAssertion>
+
+            <hashTree/>
+          </hashTree>
+        </ThreadGroup>
+
+        <!-- Summary Report -->
+        <ResultCollector guiclass="SummaryReport" testclass="ResultCollector" testname="Summary Report">
+          <objProp>
+            <name>saveConfig</name>
+            <value class="SampleSaveConfiguration">
+              <time>true</time>
+              <latency>true</latency>
+              <responseCode>true</responseCode>
+              <responseMessage>true</responseMessage>
+              <threadName>true</threadName>
+              <dataType>true</dataType>
+              <encoding>false</encoding>
+              <assertions>true</assertions>
+              <subresults>true</subresults>
+              <bytes>true</bytes>
+              <url>true</url>
+              <fileName>true</fileName>
+              <hostname>true</hostname>
+              <threadCounts>true</threadCounts>
+              <sampleCount>true</sampleCount>
+              <idleTime>true</idleTime>
+              <connectTime>true</connectTime>
+            </value>
+          </objProp>
+          <stringProp name="filename">results.jtl</stringProp>
+        </ResultCollector>
+
+        <hashTree/>
+      </hashTree>
+    </TestPlan>
+  </hashTree>
+</jmeterTestPlan>

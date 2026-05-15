@@ -1,5 +1,6 @@
 plugins {
 	id 'java'
+	id 'groovy'
 	id 'org.springframework.boot' version '4.0.6'
 	id 'io.spring.dependency-management' version '1.1.7'
 }
@@ -18,17 +19,49 @@ repositories {
 }
 
 dependencies {
+	// --- Core ---
 	implementation 'org.springframework.boot:spring-boot-starter-integration'
 	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
 	implementation 'org.springframework.boot:spring-boot-starter-security'
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'org.springframework.integration:spring-integration-http'
 	implementation 'org.springframework.integration:spring-integration-sftp'
+
+	// --- API Docs ---
+	// Verify springdoc compatibility with Spring Boot 4.x / Spring Framework 7.x
+	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.6'
+
+	// --- Boilerplate ---
+	compileOnly 'org.projectlombok:lombok'
+	annotationProcessor 'org.projectlombok:lombok'
+
+	// --- Tests: Groovy runtime ---
+	testImplementation 'org.apache.groovy:groovy:4.0.21'
+
+	// --- Tests: Spock (unit + integration) ---
+	testImplementation 'org.spockframework:spock-core:2.4-M2-groovy-4.0'
+	testImplementation 'org.spockframework:spock-spring:2.4-M2-groovy-4.0'
+
+	// --- Tests: Cucumber (aceptación / BDD) ---
+	testImplementation 'io.cucumber:cucumber-java:7.22.0'
+	testImplementation 'io.cucumber:cucumber-spring:7.22.0'
+	testImplementation 'io.cucumber:cucumber-junit-platform-engine:7.22.0'
+	testImplementation 'org.junit.platform:junit-platform-suite:1.12.1'
+
+	// --- Tests: Spring Boot infrastructure ---
 	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
 	testImplementation 'org.springframework.integration:spring-integration-test'
 	testImplementation 'org.springframework.security:spring-security-test'
 	testImplementation 'org.awaitility:awaitility'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+sourceSets {
+	test {
+		groovy {
+			srcDirs = ['src/test/groovy']
+		}
+	}
 }
 
 tasks.named('test') {

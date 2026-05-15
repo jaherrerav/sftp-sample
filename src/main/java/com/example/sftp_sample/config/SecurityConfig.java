@@ -1,4 +1,4 @@
-package com.example.sftp_sample;
+package com.example.sftp_sample.config;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -23,7 +23,8 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/upload").authenticated()
+                .requestMatchers("/api/v1/sftp/**").authenticated()
+                .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
                 .anyRequest().denyAll()
             )
             .httpBasic(Customizer.withDefaults())
