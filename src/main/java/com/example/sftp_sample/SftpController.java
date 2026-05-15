@@ -12,6 +12,8 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 @RestController
 public class SftpController {
@@ -24,17 +26,27 @@ public class SftpController {
 
     @PostMapping("/upload")
     public ResponseEntity<String> upload(@RequestParam("file") MultipartFile file) throws IOException {
-        File tempFile = File.createTempFile("sftp-", "-" + file.getOriginalFilename());
+        String originalFilename = file.getOriginalFilename();
+        if (originalFilename == null || originalFilename.isBlank()) {
+            return ResponseEntity.badRequest().body("Filename is required");
+        }
+        // Strip any path components to prevent path traversal on the remote SFTP server
+        String safeName = Path.of(originalFilename).getFileName().toString();
+
+        File tempFile = File.createTempFile("sftp-", "-" + safeName);
         try {
             file.transferTo(tempFile);
             sftpOutboundChannel.send(
                 MessageBuilder.withPayload(tempFile)
-                    .setHeader(FileHeaders.FILENAME, file.getOriginalFilename())
+                    .setHeader(FileHeaders.FILENAME, safeName)
                     .build()
             );
         } finally {
-            tempFile.delete();
+            try {
+                Files.deleteIfExists(tempFile.toPath());
+            } catch (IOException ignored) {
+            }
         }
-        return ResponseEntity.ok("Uploaded: " + file.getOriginalFilename());
+        return ResponseEntity.ok("Uploaded: " + safeName);
     }
 }

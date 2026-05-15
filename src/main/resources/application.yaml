@@ -1,11 +1,22 @@
 spring:
   application:
     name: sftp-sample
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
 
 sftp:
-  host: localhost
-  port: 2222
-  user: testuser
-  password: testpass
-  remote-dir: /upload
-  local-dir: /tmp/sftp-inbound
+  host: ${SFTP_HOST:localhost}
+  port: ${SFTP_PORT:2222}
+  user: ${SFTP_USER:testuser}
+  password: ${SFTP_PASSWORD:testpass}
+  remote-dir: ${SFTP_REMOTE_DIR:/upload}
+  local-dir: ${SFTP_LOCAL_DIR:/tmp/sftp-inbound}
+  # Set to false in production and configure sftp.known-hosts-file instead
+  allow-unknown-keys: true
+
+app:
+  security:
+    user: ${APP_SECURITY_USER:admin}
+    password: ${APP_SECURITY_PASSWORD:changeme}

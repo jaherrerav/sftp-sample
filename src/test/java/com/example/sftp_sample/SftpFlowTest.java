@@ -8,12 +8,14 @@ import org.awaitility.Awaitility;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.util.FileSystemUtils;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -64,6 +66,7 @@ class SftpFlowTest {
         registry.add("sftp.remote-dir", () -> "/upload");
         registry.add("sftp.local-dir", localDir::toString);
         registry.add("sftp.poll-interval", () -> "500");
+        registry.add("sftp.allow-unknown-keys", () -> "true");
     }
 
     @AfterAll
@@ -71,6 +74,8 @@ class SftpFlowTest {
         if (sshd != null) {
             sshd.stop(true);
         }
+        FileSystemUtils.deleteRecursively(sftpRoot);
+        FileSystemUtils.deleteRecursively(localDir);
     }
 
     @Test
@@ -78,7 +83,9 @@ class SftpFlowTest {
         MockMultipartFile file = new MockMultipartFile(
                 "file", "hello.txt", "text/plain", "hello sftp".getBytes());
 
-        mockMvc.perform(multipart("/upload").file(file))
+        mockMvc.perform(multipart("/upload")
+                        .file(file)
+                        .with(SecurityMockMvcRequestPostProcessors.user("admin").roles("USER")))
                 .andExpect(status().isOk())
                 .andExpect(content().string("Uploaded: hello.txt"));
 

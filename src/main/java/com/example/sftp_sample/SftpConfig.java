@@ -1,8 +1,11 @@
 package com.example.sftp_sample;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.io.FileSystemResource;
 import org.springframework.expression.common.LiteralExpression;
 import org.springframework.integration.annotation.InboundChannelAdapter;
 import org.springframework.integration.annotation.Poller;
@@ -19,14 +22,13 @@ import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.MessageHandler;
 
 import java.io.File;
-import java.util.logging.Logger;
 
 @Configuration
 @EnableIntegration
 @EnableConfigurationProperties(SftpProperties.class)
 public class SftpConfig {
 
-    private static final Logger log = Logger.getLogger(SftpConfig.class.getName());
+    private static final Logger log = LoggerFactory.getLogger(SftpConfig.class);
 
     @Bean
     public DefaultSftpSessionFactory sftpSessionFactory(SftpProperties props) {
@@ -35,7 +37,18 @@ public class SftpConfig {
         factory.setPort(props.getPort());
         factory.setUser(props.getUser());
         factory.setPassword(props.getPassword());
-        factory.setAllowUnknownKeys(true);
+
+        String knownHostsFile = props.getKnownHostsFile();
+        if (knownHostsFile != null && !knownHostsFile.isBlank()) {
+            factory.setKnownHostsResource(new FileSystemResource(knownHostsFile));
+        } else if (props.isAllowUnknownKeys()) {
+            log.warn("SFTP host key verification is disabled. Do not use in production.");
+            factory.setAllowUnknownKeys(true);
+        } else {
+            throw new IllegalStateException(
+                "Configure sftp.known-hosts-file for production, or set sftp.allow-unknown-keys=true for local testing only.");
+        }
+
         return factory;
     }
 
@@ -70,7 +83,7 @@ public class SftpConfig {
     @Bean
     @ServiceActivator(inputChannel = "sftpInboundChannel")
     public MessageHandler inboundFileHandler() {
-        return message -> log.info("Downloaded file: " + ((File) message.getPayload()).getName());
+        return message -> log.info("Downloaded file: {}", ((File) message.getPayload()).getName());
     }
 
     // --- Outbound: upload files to remote SFTP directory ---

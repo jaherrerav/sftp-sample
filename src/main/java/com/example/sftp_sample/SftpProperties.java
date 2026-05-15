@@ -1,16 +1,21 @@
 package com.example.sftp_sample;
 
+import jakarta.validation.constraints.NotBlank;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.validation.annotation.Validated;
 
 @ConfigurationProperties(prefix = "sftp")
+@Validated
 public class SftpProperties {
 
-    private String host;
+    @NotBlank private String host;
     private int port = 22;
-    private String user;
-    private String password;
+    @NotBlank private String user;
+    @NotBlank private String password;
     private String remoteDir = "/";
-    private String localDir;
+    @NotBlank private String localDir;
+    private boolean allowUnknownKeys = false;
+    private String knownHostsFile;
 
     public String getHost() { return host; }
     public void setHost(String host) { this.host = host; }
@@ -29,4 +34,10 @@ public class SftpProperties {
 
     public String getLocalDir() { return localDir; }
     public void setLocalDir(String localDir) { this.localDir = localDir; }
+
+    public boolean isAllowUnknownKeys() { return allowUnknownKeys; }
+    public void setAllowUnknownKeys(boolean allowUnknownKeys) { this.allowUnknownKeys = allowUnknownKeys; }
+
+    public String getKnownHostsFile() { return knownHostsFile; }
+    public void setKnownHostsFile(String knownHostsFile) { this.knownHostsFile = knownHostsFile; }
 }
