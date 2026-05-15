@@ -1,0 +1,11 @@
+spring:
+  application:
+    name: sftp-sample
+
+sftp:
+  host: localhost
+  port: 2222
+  user: testuser
+  password: testpass
+  remote-dir: /upload
+  local-dir: /tmp/sftp-inbound
