@@ -1,7 +1,9 @@
 package com.example.sftp_sample.config;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.io.File;
+
+import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -21,15 +23,19 @@ import org.springframework.integration.sftp.session.DefaultSftpSessionFactory;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.MessageHandler;
 
-import java.io.File;
-
+/**
+ * Spring Integration wiring for bidirectional SFTP communication.
+ */
+@Slf4j
 @Configuration
 @EnableIntegration
 @EnableConfigurationProperties(SftpProperties.class)
 public class SftpConfig {
 
-    private static final Logger log = LoggerFactory.getLogger(SftpConfig.class);
-
+    /**
+     * Creates the SFTP session factory, enforcing host key verification
+     * unless explicitly disabled for local testing.
+     */
     @Bean
     public DefaultSftpSessionFactory sftpSessionFactory(SftpProperties props) {
         DefaultSftpSessionFactory factory = new DefaultSftpSessionFactory(true);
@@ -46,58 +52,73 @@ public class SftpConfig {
             factory.setAllowUnknownKeys(true);
         } else {
             throw new IllegalStateException(
-                "Configure sftp.known-hosts-file for production, or set sftp.allow-unknown-keys=true for local testing only.");
+                "Configure sftp.known-hosts-file for production, "
+                + "or set sftp.allow-unknown-keys=true for local testing only.");
         }
 
         return factory;
     }
 
-    // --- Inbound: poll remote SFTP directory and download new files ---
-
+    /**
+     * Configures periodic sync from the remote directory without deleting remote files.
+     */
     @Bean
-    public SftpInboundFileSynchronizer sftpInboundFileSynchronizer(DefaultSftpSessionFactory sessionFactory,
-                                                                    SftpProperties props) {
-        SftpInboundFileSynchronizer synchronizer = new SftpInboundFileSynchronizer(sessionFactory);
+    public SftpInboundFileSynchronizer sftpInboundFileSynchronizer(
+            DefaultSftpSessionFactory sessionFactory,
+            SftpProperties props) {
+        SftpInboundFileSynchronizer synchronizer =
+            new SftpInboundFileSynchronizer(sessionFactory);
         synchronizer.setRemoteDirectory(props.getRemoteDir());
         synchronizer.setDeleteRemoteFiles(false);
         synchronizer.setFilter(new SftpSimplePatternFileListFilter("*"));
         return synchronizer;
     }
 
+    /** Polls the remote directory and emits a message per downloaded file. */
     @Bean
-    @InboundChannelAdapter(channel = "sftpInboundChannel", poller = @Poller(fixedDelay = "${sftp.poll-interval:5000}"))
-    public MessageSource<File> sftpInboundMessageSource(SftpInboundFileSynchronizer synchronizer,
-                                                        SftpProperties props) {
+    @InboundChannelAdapter(
+        channel = "sftpInboundChannel",
+        poller = @Poller(fixedDelay = "${sftp.poll-interval:5000}"))
+    public MessageSource<File> sftpInboundMessageSource(
+            SftpInboundFileSynchronizer synchronizer,
+            SftpProperties props) {
         SftpInboundFileSynchronizingMessageSource source =
-                new SftpInboundFileSynchronizingMessageSource(synchronizer);
+            new SftpInboundFileSynchronizingMessageSource(synchronizer);
         source.setLocalDirectory(new File(props.getLocalDir()));
         source.setAutoCreateLocalDirectory(true);
         return source;
     }
 
+    /** Channel that carries inbound SFTP file messages. */
     @Bean
     public MessageChannel sftpInboundChannel() {
         return new DirectChannel();
     }
 
+    /** Logs each file received from the remote SFTP server. */
     @Bean
     @ServiceActivator(inputChannel = "sftpInboundChannel")
     public MessageHandler inboundFileHandler() {
-        return message -> log.info("Downloaded file: {}", ((File) message.getPayload()).getName());
+        return message ->
+            log.info("Archivo descargado filename={}",
+                ((File) message.getPayload()).getName());
     }
 
-    // --- Outbound: upload files to remote SFTP directory ---
-
+    /** Channel that accepts files to be uploaded to the remote SFTP server. */
     @Bean
     public MessageChannel sftpOutboundChannel() {
         return new DirectChannel();
     }
 
+    /** Routes outbound messages to the configured remote directory. */
     @Bean
     @ServiceActivator(inputChannel = "sftpOutboundChannel")
-    public MessageHandler sftpOutboundHandler(DefaultSftpSessionFactory sessionFactory, SftpProperties props) {
+    public MessageHandler sftpOutboundHandler(
+            DefaultSftpSessionFactory sessionFactory,
+            SftpProperties props) {
         SftpMessageHandler handler = new SftpMessageHandler(sessionFactory);
-        handler.setRemoteDirectoryExpression(new LiteralExpression(props.getRemoteDir()));
+        handler.setRemoteDirectoryExpression(
+            new LiteralExpression(props.getRemoteDir()));
         handler.setAutoCreateDirectory(true);
         return handler;
     }
