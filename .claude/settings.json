@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "agent",
+            "prompt": "Se acaba de editar un archivo. El input del hook es: $ARGUMENTS\n\nExtrae el file_path del campo tool_input. Si el archivo NO termina en '.java', sal inmediatamente sin hacer nada.\n\nSi SÍ es un archivo .java, lee el archivo y aplica los siguientes tres pasos en orden. Si no hay nada que cambiar en un paso, pasa al siguiente sin modificar el archivo.\n\n--- PASO 1: IMPORTS ---\na) Elimina cualquier import que no esté referenciado en el cuerpo del archivo (import sin usar).\nb) Elimina imports con wildcard (ej. import java.util.*) — deben ser imports explícitos.\nc) Elimina imports duplicados y los del paquete java.lang (String, Integer, etc.).\nd) Ordena los imports: primero java.*, luego jakarta.*, luego org.*, luego io.*, luego com.*, finalmente el paquete propio del proyecto. Separa los grupos con una línea en blanco.\n\n--- PASO 2: FORMATO (reglas de code-style.md) ---\na) Indentación: 4 espacios por nivel, sin tabs. Líneas de continuación: 8 espacios.\nb) Llaves obligatorias en todos los bloques (if, for, while, try, etc.), incluso los de una sola sentencia. La llave de apertura va al final de la primera línea.\nc) Una sola sentencia por línea.\nd) Líneas de más de 80 caracteres: parte la línea en un punto lógico (operador, coma o paréntesis abierto) dejando el operador al inicio de la siguiente línea.\ne) No modifiques la lógica, sólo el formato.\n\n--- PASO 3: JAVADOC ---\na) Identifica todas las clases, interfaces, enums y métodos con visibilidad public o protected que NO tienen un comentario /** ... */ inmediatamente antes de su declaración.\nb) Para cada elemento sin Javadoc añade /** ... */ explicando el PROPÓSITO o el POR QUÉ, no lo que el código hace literalmente:\n   - Clases/interfaces/enums: una oración sobre la responsabilidad del tipo.\n   - Métodos: una oración sobre la intención, restricción no obvia o contrato.\n   - No añadas @param ni @return salvo que el significado sea genuinamente no obvio.\nc) NO toques los comentarios Javadoc que ya existen.\n\nGuarda el archivo si hubo algún cambio en cualquiera de los tres pasos.",
+            "statusMessage": "Aplicando formato, imports y Javadoc...",
+            "timeout": 60
+          }
+        ]
+      }
+    ]
+  }
+}
